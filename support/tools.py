@@ -14,8 +14,8 @@ def get_order_details(order_id):
             "tracking_number":order.tracking_number,
             "delivery_address":order.delivery,
             "ordered_on":order.created_at.strftime("%d %b %Y"),
-            "estimated_delivery":order.expected_delivery.strftime("%d %b %Y"),
-            "days_since_order":(timezone.now()-order.created_at).days,
+            # "estimated_delivery":order.expected_delivery.strftime("%d %b %Y"),
+            "days_since_order":(timezone.now() - order.created_at).days,
 
         }
     except Order.DoesNotExist: 
@@ -23,7 +23,7 @@ def get_order_details(order_id):
 
 
 def get_refund_history(user_id):
-    refunds = RefundRequest.objects.filter(user_id=user_id).order_by("-created_at"),
+    refunds = RefundRequest.objects.filter(user_id=user_id).order_by("-created_at")
 
     history = []
     for refund in refunds:

@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from .models import Order,RefundRequest
 from django.contrib.auth.decorators import login_required
+from support.models import Conversation
 
 # Create your views here.
 
@@ -14,5 +15,12 @@ def orders_list(request):
 def order_detail(request,order_id):
     order = get_object_or_404(Order, id=order_id,user=request.user)
     refunds = RefundRequest.objects.filter(order=order)
-    context = {'order': order, 'refunds': refunds}
+
+    try:
+        conversation = Conversation.objects.get(user=request.user, order = order)
+        previous_messages = conversation.messages.order_by("created_at")
+    except Conversation.DoesNotExist:
+        conversation = None 
+        previous_messages = []
+    context = {'order': order, 'refunds': refunds, 'conversation': conversation, 'previous_messages': previous_messages}
     return render(request, 'order_detail.html', context)

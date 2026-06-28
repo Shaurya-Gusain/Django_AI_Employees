@@ -202,7 +202,6 @@
         color: #fff;
       }
 
-      /* AI Chat Box Styles */
       #chat-box {
         height: 350px;
         display: flex;
@@ -312,7 +311,6 @@
         </div>
 
         <div class="col-md-4">
-          <!-- help card - visible by default-->
           <div class="help-card" id="help-card">
             <div style="font-size: 32px">💬</div>
             <h6>Need help with this order?</h6>
@@ -322,9 +320,7 @@
             </p>
             <button class="btn-help" onclick="showChat()">Get Help</button>
           </div>
-          <!-- AI chat section - hidden by default-->
           <div id="chat-box" class="card">
-            <!--Header-->
             <div class="card-header d-flex align-items-center gap-2">
               <div
                 style="
@@ -338,7 +334,6 @@
                 >Support Agent</span
               >
             </div>
-            <!-- Chat area -->
             <div
               id="chat-messages"
               class="chat-messages p-3 d-flex flex-column gap-2"
@@ -347,10 +342,26 @@
                 class="agent-message p-2 px-3"
                 style="font-size: 13px; max-width: 85%"
               >
-                Hi, I'm Maya. How can I help you with your order today?
+                Hi {{ request.user.first_name }}, I'm Maya. How can I help you with your order today?
               </div>
+              {% for mesg in previous_messages %}
+                {% if mesg.role == 'user' %}
+                  <div
+                    class="customer-message px-3 py-2 mb-2"
+                    style="font-size: 13px; max-width: 85%"
+                  >
+                    {{ mesg.content }}
+                  </div>
+                {% else %}
+                  <div
+                    class="agent-message px-3 py-2 mb-2"
+                    style="font-size: 13px; max-width: 85%"
+                  >
+                    {{ mesg.content }}
+                  </div>
+                {% endif %}
+              {% endfor %}
             </div>
-            <!--Footer Input Area-->
             <div class="card-footer bg-white border-top-0 px-3 pb-3">
               <div class="d-flex gap-2">
                 <input
@@ -379,12 +390,12 @@
       </div>
     </div>
 
-    <!-- Chat functionality scripts -->
     <script>
       function showChat() {
         document.getElementById("help-card").style.display = "none";
         const chatBox = document.getElementById("chat-box");
         chatBox.classList.add("visible");
+        document.getElementById("chat-input").focus();
       }
 
       function appendMessage(text, type) {
@@ -405,24 +416,64 @@
         div.innerText = text;
 
         messages.appendChild(div);
-
-        // Auto scroll to bottom
         messages.scrollTop = messages.scrollHeight;
       }
 
-      function sendMessage() {
+      function showTyping() {
+        const messages = document.getElementById("chat-messages");
+        messages.insertAdjacentHTML(
+          "beforeend",
+          `<div id="typing-indicator" class="agent-message px-3 py-2 mb-2" style="font-size: 13px; max-width: 85%;">typing...</div>`,
+        );
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function hideTyping() {
+        const typingIndicator = document.getElementById("typing-indicator");
+        if (typingIndicator) {
+          typingIndicator.remove();
+        }
+      }
+
+      async function sendMessage() {
         const input = document.getElementById("chat-input");
         const message = input.value.trim();
 
         if (!message) {
-          return; // Don't send empty message
+          return;
         }
 
         appendMessage(message, "customer");
-        input.value = ""; // clear input
+        input.value = "";
+
+        input.disabled = true;
+
+        showTyping();
+
+        try {
+          const response = await fetch("/support/chat/{{order.id}}/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": "{{csrf_token}}",
+            },
+            body: JSON.stringify({
+              message: message,
+            }),
+          });
+          const data = await response.json();
+          hideTyping();
+          appendMessage(data.reply, "agent");
+        } catch (error) {
+          console.error("Error: ", error);
+          hideTyping();
+          appendMessage("Sorry, something went wrong", "agent");
+        } finally {
+          input.disabled = false;
+          input.focus();
+        }
       }
 
-      // Send message on enter key
       document.addEventListener("DOMContentLoaded", function () {
         const input = document.getElementById("chat-input");
         if (input) {
