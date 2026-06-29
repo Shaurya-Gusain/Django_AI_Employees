@@ -1,6 +1,6 @@
 from groq import Groq
 from django.conf import settings
-from .tools import get_order_details, get_refund_history, check_delivery_status
+from .tools import get_order_details, get_refund_history, check_delivery_status, get_customer_risk_profile
 from .models import Conversation, Message, AgentLog
 import json
 
@@ -45,6 +45,7 @@ Response rules:
 - Never approve or deny a refund yourself. If a refund decision is requested, explain that the request will be reviewed by the appropriate team.
 - Be empathetic and acknowledge the customer's concern before providing factual information.
 - Once you have sufficient information from the tools, answer the customer's original question directly instead of asking for information you already know.
+- When relaying a refund decision to the customer, communicate only the outcome and timeline. Do not share internal operational steps, monitoring flags, or audit notes.
 
 Your goal is to provide accurate, helpful, and trustworthy customer support while minimizing unnecessary tool usage.
 """
@@ -69,6 +70,33 @@ Important rules:
 - Base decision on facts — not emotions
 - Always give a specific reason for your decision
 - Keep your response concise and professional
+- Keep your decision to: decision outcome + reason only.
+- Do not include internal operational steps or next steps.
+"""
+
+RISK_SYSTEM_PROMPT = """
+You are a fraud risk analyst at CoolBreeze AC.
+A support manager has sent you a customer profile for risk assessment.
+
+Your job:
+- Analyse the customer's order and refund patterns
+- Identify suspicious behaviour
+- Return a clear risk verdict
+
+Risk levels:
+- LOW — genuine customer, normal behaviour
+- MEDIUM — some suspicious signals, proceed with caution
+- HIGH — clear fraud pattern, recommend denial
+
+Your response format:
+- Risk Level: LOW / MEDIUM / HIGH
+- Key Signals: what you found suspicious or genuine
+- Recommendation: what manager should do
+
+Important:
+- Be objective — base verdict on data only
+- One bad refund does not make someone fraudulent
+- Look for patterns — not isolated incidents
 """
 
 
@@ -148,6 +176,45 @@ SUPPORT_TOOLS = [
     }
 ]
 
+RISK_TOOLS = [
+    {
+    "type": "function",
+    "function": {
+        "name": "get_customer_risk_profile",
+        "description": "Get complete risk profile for a customer including order history, refund patterns and ratio. Use this to assess fraud risk for a customer.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The user ID to assess risk for"
+                }
+            },
+            "required": ["user_id"]
+        }
+    }
+}
+]
+
+MANAGER_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "assess_fraud_risk",
+            "description": "Consult the risk agent to assess fraud risk for a customer. Use this when refund request looks suspicious or customer has multiple refund requests.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "description": "The user ID to assess fraud risk for"
+                    }
+                },
+                "required": ["user_id"]
+            }
+        }
+    }
+]
 
 # execute_tool() --> bridge between llm and python functions
 def execute_tool(tool_name, tool_input):
@@ -164,11 +231,25 @@ def execute_tool(tool_name, tool_input):
         )
     
     if tool_name == "escalate_to_manager":
+        print("=" * 50)
+        print("ESCALATING TO MANAGER")
+        print("=" * 50)
         case_summary = tool_input["case_summary"]
         print("ESCALATING TO MANAGER",case_summary)
         decision=run_manager_agent(case_summary)
         print("MANAGER DECISION",decision)
-        return decision
+        return {"decision": decision}
+
+    if tool_name == "assess_fraud_risk":
+        print("=" * 50)
+        print("CONSULTING RISK AGENT")
+        print("=" * 50)
+        user_id = tool_input["user_id"]
+        verdict = run_risk_agent(user_id)
+        return {"verdict": verdict}
+
+    if tool_name == "get_customer_risk_profile":
+        return get_customer_risk_profile(tool_input["user_id"])
 
     return {"error": "tool not found"}
 
@@ -200,7 +281,7 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
             ],
             tools=SUPPORT_TOOLS,
             tool_choice="auto",
-            max_tokens=1024,
+            max_tokens=2048,
         )
         message = response.choices[0].message
         finish_reason = response.choices[0].finish_reason
@@ -255,13 +336,15 @@ def run_manager_agent(case_summary):
                 },
                 *manager_messages
             ],
-            # tools=SUPPORT_TOOLS,
-            # tool_choice="auto",
+            tools=MANAGER_TOOLS,
+            tool_choice="auto",
             max_tokens=1024,
         )
 
         message = response.choices[0].message
         finish_reason = response.choices[0].finish_reason
+
+        print("MANAGER Stop reason -->", finish_reason)
 
         if finish_reason == "stop":
             return message.content
@@ -272,10 +355,69 @@ def run_manager_agent(case_summary):
                 tool_name = tool_call.function.name
                 tool_input = json.loads(tool_call.function.arguments)
 
+                print("MANAGER Tool called -->", tool_name)
+                print("MANAGER Tool input -->", tool_input)
+
                 result = execute_tool(tool_name, tool_input)
                 manager_messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
                     "content": json.dumps(result)
                 })
+
+                print("MANAGER Tool result -->", result)
+            continue
+
+
+
+def run_risk_agent(user_id):
+    risk_messages = [
+        {
+            "role": "user",
+            "content": f"Please assess the fraud risk for user ID {user_id}. Use your tool to get their profile and return a verdict."
+        }
+    ]
+
+    while True:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": RISK_SYSTEM_PROMPT
+                },
+                *risk_messages
+            ],
+            tools=RISK_TOOLS,
+            tool_choice="auto",
+            max_tokens=1024,
+        )
+
+        message = response.choices[0].message
+        finish_reason = response.choices[0].finish_reason
+
+        print("RISK Stop reason -->", finish_reason)
+
+        if finish_reason == "stop":
+            return message.content
+
+        if finish_reason == "tool_calls":
+            risk_messages.append(message)
+
+            for tool_call in message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_input = json.loads(tool_call.function.arguments)
+
+                print("RISK Tool called -->", tool_name)
+                print("RISK Tool input -->", tool_input)
+
+                result = execute_tool(tool_name, tool_input)
+
+                risk_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result)
+                })
+
+                print("RISK Tool result -->", result)
             continue
