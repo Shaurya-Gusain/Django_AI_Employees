@@ -217,7 +217,8 @@ MANAGER_TOOLS = [
 ]
 
 # execute_tool() --> bridge between llm and python functions
-def execute_tool(tool_name, tool_input):
+# Pass conv through the chain to enable centralized logging for all agent events
+def execute_tool(tool_name, tool_input, conv=None):
     if tool_name == "get_order_details":
         return get_order_details(tool_input["order_id"])
 
@@ -236,7 +237,7 @@ def execute_tool(tool_name, tool_input):
         print("=" * 50)
         case_summary = tool_input["case_summary"]
         print("ESCALATING TO MANAGER",case_summary)
-        decision=run_manager_agent(case_summary)
+        decision=run_manager_agent(case_summary, conv=conv)
         print("MANAGER DECISION",decision)
         return {"decision": decision}
 
@@ -245,7 +246,7 @@ def execute_tool(tool_name, tool_input):
         print("CONSULTING RISK AGENT")
         print("=" * 50)
         user_id = tool_input["user_id"]
-        verdict = run_risk_agent(user_id)
+        verdict = run_risk_agent(user_id, conv=conv)
         return {"verdict": verdict}
 
     if tool_name == "get_customer_risk_profile":
@@ -290,6 +291,12 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
         print("Content -->", message.content)
 
         if finish_reason == "stop":
+            # Log the final support agent response before returning it
+            AgentLog.objects.create(
+                conversation=conv,
+                event_type="final",
+                message=message.content
+            )
             return message.content
 
         if finish_reason == "tool_calls":
@@ -301,12 +308,26 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
                 tool_input = json.loads(
                     tool_call.function.arguments
                 )
+                AgentLog.objects.create(
+                    conversation=conv,
+                    event_type="tool_call",
+                    message=f"Calling {tool_name} with {tool_input}"
+                )
+                
                 print("===================================")
                 print("Tool called -->", tool_name)
                 print("Tool input -->", tool_input)
                 print("===================================")
 
-                result = execute_tool(tool_name,tool_input)
+                # Execute the tool and pass the conv object for potential nested agent logging
+                result = execute_tool(tool_name, tool_input, conv=conv)
+
+                # Log the tool result to the database
+                AgentLog.objects.create(
+                    conversation=conv,
+                    event_type="tool_result",
+                    message=f"{tool_name} returned: {str(result)[:200]}"
+                )
 
                 conversation_messages.append({
                 "role": "tool",
@@ -317,11 +338,11 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
                 print("Tool result -->",result)
             continue
 
-        else:
-            return response.choices[0].message.content
+    return ""  # safety fallback, should never reach here
 
 
-def run_manager_agent(case_summary):
+def run_manager_agent(case_summary, conv=None):
+
     manager_messages = [
         {"role":"user", "content":case_summary}
     ]
@@ -347,6 +368,13 @@ def run_manager_agent(case_summary):
         print("MANAGER Stop reason -->", finish_reason)
 
         if finish_reason == "stop":
+            # Log the manager's final decision
+            if conv:
+                AgentLog.objects.create(
+                    conversation=conv,
+                    event_type="manager",
+                    message=message.content
+                )
             return message.content
 
         if finish_reason == "tool_calls":
@@ -358,7 +386,24 @@ def run_manager_agent(case_summary):
                 print("MANAGER Tool called -->", tool_name)
                 print("MANAGER Tool input -->", tool_input)
 
-                result = execute_tool(tool_name, tool_input)
+                # Log manager's tool call
+                if conv:
+                    AgentLog.objects.create(
+                        conversation=conv,
+                        event_type="tool_call",
+                        message=f"MANAGER Calling {tool_name} with {tool_input}"
+                    )
+
+                result = execute_tool(tool_name, tool_input, conv=conv)
+                
+                # Log manager's tool result
+                if conv:
+                    AgentLog.objects.create(
+                        conversation=conv,
+                        event_type="tool_result",
+                        message=f"MANAGER {tool_name} returned: {str(result)[:200]}"
+                    )
+
                 manager_messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -370,7 +415,8 @@ def run_manager_agent(case_summary):
 
 
 
-def run_risk_agent(user_id):
+def run_risk_agent(user_id, conv=None):
+
     risk_messages = [
         {
             "role": "user",
@@ -399,6 +445,13 @@ def run_risk_agent(user_id):
         print("RISK Stop reason -->", finish_reason)
 
         if finish_reason == "stop":
+            # Log the risk analyst's final verdict
+            if conv:
+                AgentLog.objects.create(
+                    conversation=conv,
+                    event_type="risks",
+                    message=message.content
+                )
             return message.content
 
         if finish_reason == "tool_calls":
@@ -411,7 +464,23 @@ def run_risk_agent(user_id):
                 print("RISK Tool called -->", tool_name)
                 print("RISK Tool input -->", tool_input)
 
-                result = execute_tool(tool_name, tool_input)
+                # Log risk agent's tool call
+                if conv:
+                    AgentLog.objects.create(
+                        conversation=conv,
+                        event_type="tool_call",
+                        message=f"RISK Calling {tool_name} with {tool_input}"
+                    )
+
+                result = execute_tool(tool_name, tool_input, conv=conv)
+
+                # Log risk agent's tool result
+                if conv:
+                    AgentLog.objects.create(
+                        conversation=conv,
+                        event_type="tool_result",
+                        message=f"RISK {tool_name} returned: {str(result)[:200]}"
+                    )
 
                 risk_messages.append({
                     "role": "tool",
