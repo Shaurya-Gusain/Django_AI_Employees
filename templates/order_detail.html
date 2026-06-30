@@ -8,14 +8,18 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
-        background: #f0f4f8;
-        font-family: "Segoe UI", sans-serif;
+        background: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
 
       .navbar {
-        background: #1a1a2e;
+        background: #0f172a;
         padding: 14px 24px;
       }
 
@@ -23,6 +27,8 @@
         color: #fff;
         font-weight: 700;
         font-size: 16px;
+        display: flex;
+        align-items: center;
       }
 
       .navbar-text {
@@ -38,6 +44,7 @@
         cursor: pointer;
         margin-left: 16px;
         padding: 0;
+        transition: color 0.2s;
       }
 
       .logout-btn:hover {
@@ -46,36 +53,41 @@
 
       .back-link {
         font-size: 13px;
-        color: #6c757d;
+        color: #64748b;
         text-decoration: none;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
         margin: 24px 0 16px;
+        font-weight: 500;
+        transition: color 0.2s;
       }
 
       .back-link:hover {
-        color: #1a1a2e;
+        color: #4f46e5;
       }
 
       .detail-card {
         background: #fff;
         border-radius: 12px;
         padding: 28px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
         margin-bottom: 16px;
       }
 
       .detail-card h6 {
         font-weight: 700;
-        color: #1a1a2e;
+        color: #0f172a;
         margin: 0 0 20px;
         font-size: 15px;
       }
 
       .detail-row {
         display: flex;
-        padding: 10px 0;
-        border-bottom: 1px solid #f1f3f5;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
         font-size: 13px;
+        align-items: center;
       }
 
       .detail-row:last-child {
@@ -83,58 +95,56 @@
       }
 
       .detail-label {
-        color: #6c757d;
+        color: #64748b;
         width: 160px;
         flex-shrink: 0;
       }
 
       .detail-value {
-        color: #1a1a2e;
+        color: #0f172a;
         font-weight: 500;
       }
 
-      .badge-pending {
-        background: #cfe2ff;
-        color: #084298;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
+      .status-badge {
+        padding: 0.35em 0.75em;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 50rem;
+        display: inline-block;
+        text-transform: capitalize;
+      }
+      .status-pending {
+        background-color: rgba(13, 110, 253, 0.12);
+        color: #0b5ed7;
+      }
+      .status-shipped, .status-dispatched {
+        background-color: rgba(253, 126, 20, 0.12);
+        color: #fd7e14;
+      }
+      .status-delivered {
+        background-color: rgba(25, 135, 84, 0.12);
+        color: #198754;
+      }
+      .status-cancelled {
+        background-color: rgba(220, 53, 69, 0.12);
+        color: #dc3545;
       }
 
-      .badge-dispatched {
-        background: #fff3cd;
-        color: #856404;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
+      .status-approved {
+        background-color: rgba(25, 135, 84, 0.12);
+        color: #198754;
       }
-
-      .badge-delivered {
-        background: #d1e7dd;
-        color: #0a3622;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
-      }
-
-      .badge-cancelled {
-        background: #f8d7da;
-        color: #58151c;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
+      .status-denied {
+        background-color: rgba(220, 53, 69, 0.12);
+        color: #dc3545;
       }
 
       .refund-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #f1f3f5;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
         font-size: 13px;
       }
 
@@ -143,71 +153,59 @@
       }
 
       .refund-reason {
-        color: #495057;
-      }
-
-      .badge-approved {
-        background: #d1e7dd;
-        color: #0a3622;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
-      }
-
-      .badge-denied {
-        background: #f8d7da;
-        color: #58151c;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 500;
+        color: #334155;
       }
 
       .help-card {
         background: #fff;
         border-radius: 12px;
         padding: 28px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
         text-align: center;
       }
 
       .help-card h6 {
         font-weight: 700;
-        color: #1a1a2e;
+        color: #0f172a;
         margin: 16px 0 8px;
       }
 
       .help-card p {
         font-size: 13px;
-        color: #6c757d;
+        color: #64748b;
         margin: 0 0 20px;
       }
 
       .btn-help {
-        background: #1a1a2e;
+        background: #4f46e5;
         color: #fff;
         border: none;
         border-radius: 8px;
         padding: 12px 24px;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         text-decoration: none;
         display: inline-block;
         width: 100%;
+        transition: all 0.2s;
       }
 
       .btn-help:hover {
-        background: #2d2d4e;
+        background: #4338ca;
         color: #fff;
       }
 
       #chat-box {
-        height: 350px;
+        height: 380px;
         display: flex;
         flex-direction: column;
         opacity: 0;
         transition: opacity 0.3s ease;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
       }
 
       #chat-box.visible {
@@ -220,17 +218,18 @@
       }
 
       .agent-message {
-        background: #f3f4f6;
-        border-radius: 0 10px 10px 10px;
+        background: #f1f5f9;
+        border-radius: 0 12px 12px 12px;
         white-space: pre-line;
         margin-right: auto;
         align-self: flex-start;
+        color: #1e293b;
       }
 
       .customer-message {
-        background-color: #1a1a2e;
+        background-color: #4f46e5;
         color: #fff;
-        border-radius: 10px 0 10px 10px;
+        border-radius: 12px 0 12px 12px;
         margin-left: auto;
         align-self: flex-end;
       }
@@ -238,7 +237,10 @@
   </head>
   <body>
     <nav class="navbar d-flex align-items-center justify-content-between">
-      <span class="navbar-brand">❄️ CoolBreeze AC</span>
+      <span class="navbar-brand">
+        <i class="bi bi-snow2 text-info me-2"></i>
+        CoolBreeze AC
+      </span>
       <div class="d-flex align-items-center">
         <span class="navbar-text">Hi, {{ request.user.first_name }}</span>
         <form method="POST" action="{% url 'logout' %}" style="display: inline">
@@ -249,7 +251,10 @@
     </nav>
 
     <div class="container">
-      <a href="{% url 'orders_list' %}" class="back-link">← Back to Orders</a>
+      <a href="{% url 'orders_list' %}" class="back-link">
+        <i class="bi bi-arrow-left me-1"></i>
+        Back to Orders
+      </a>
 
       <div class="row g-3">
         <div class="col-md-8">
@@ -259,7 +264,7 @@
             <div class="detail-row">
               <span class="detail-label">Status</span>
               <span class="detail-value">
-                <span class="badge-{{ order.status }}">
+                <span class="status-badge status-{{ order.status|lower }}">
                   {{ order.get_status_display }}
                 </span>
               </span>
@@ -301,7 +306,7 @@
             {% for refund in refunds %}
             <div class="refund-item">
               <span class="refund-reason">{{ refund.reason }}</span>
-              <span class="badge-{{ refund.status }}">
+              <span class="status-badge status-{{ refund.status|lower }}">
                 {{ refund.get_status_display }}
               </span>
             </div>
@@ -312,7 +317,9 @@
 
         <div class="col-md-4">
           <div class="help-card" id="help-card">
-            <div style="font-size: 32px">💬</div>
+            <div style="font-size: 32px" class="text-primary mb-3">
+              <i class="bi bi-chat-left-text-fill fs-1" style="color: #4f46e5;"></i>
+            </div>
             <h6>Need help with this order?</h6>
             <p>
               Our AI support agent can help you with delivery issues, refunds,
@@ -372,15 +379,16 @@
                   placeholder="Type a message..."
                 />
                 <button
-                  class="btn btn-dark btn-sm px-3"
+                  class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1"
                   style="
                     border-radius: 8px;
-                    background-color: #000;
+                    background-color: #4f46e5;
                     border: none;
                   "
                   type="button"
                   onclick="sendMessage()"
                 >
+                  <i class="bi bi-send-fill" style="font-size: 11px;"></i>
                   Send
                 </button>
               </div>

@@ -12,6 +12,14 @@ class Conversation(models.Model):
     def __str__(self):
         return f"Conversation #{self.id} - {self.user.username} / Order #{self.order.id}"
 
+    @property
+    def manager_involved(self):
+        return self.agent_logs.filter(event_type="manager").exists()
+
+    @property
+    def risked_assessed(self):
+        return self.agent_logs.filter(event_type="risks").exists()
+
 
 class Message(models.Model):
     ROLE_CHOICES = [

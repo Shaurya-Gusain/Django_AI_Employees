@@ -1,0 +1,107 @@
+{% extends 'support/dashboard_base.html' %}
+
+{% block content %}
+      <!-- Header -->
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{% url 'dashboard' %}" class="text-muted text-decoration-none d-flex align-items-center" style="font-size:13px; font-weight: 500;">
+          <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+        <h5 class="fw-bold mb-0">Conversation #{{ conversation.id }}</h5>
+        <span class="text-muted" style="font-size:13px;">
+          {{ conversation.user.get_full_name|default:conversation.user.username }} · Order #{{ conversation.order.id }} · {{ conversation.order.product_name }}
+        </span>
+      </div>
+
+      <!-- Two Column Layout -->
+      <div class="row g-3" style="height:calc(100vh - 160px);">
+
+        <!-- Left: Chat Transcript -->
+        <div class="col-md-6 h-100">
+          <div class="card h-100 shadow-sm border-light" style="overflow: hidden;">
+            <div class="card-header fw-semibold" style="font-size:13px; background: #fff; border-bottom: 1px solid #f1f5f9;">
+              Chat Transcript
+            </div>
+            <div class="card-body overflow-auto d-flex flex-column gap-3" id="chatTranscript">
+
+              {% for message in messages %}
+                {% if message.role == 'user' %}
+                  <!-- Customer message -->
+                  <div>
+                    <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:500;">
+                      {{ conversation.user.get_full_name|default:conversation.user.username }}
+                    </div>
+                    <div class="bg-light rounded p-2 px-3" style="font-size:13px;max-width:85%;color:#1e293b;">
+                      {{ message.content }}
+                    </div>
+                  </div>
+                {% else %}
+                  <!-- Agent message -->
+                  <div class="text-end">
+                    <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:500;">Maya (AI Agent)</div>
+                    <div class="rounded p-2 px-3 d-inline-block text-start" 
+                         style="font-size:13px;max-width:85%;background:#ede9fe;color:#3C3489;">
+                      {{ message.content }}
+                    </div>
+                  </div>
+                {% endif %}
+              {% empty %}
+                <div class="text-center text-muted my-auto">No messages in this conversation.</div>
+              {% endfor %}
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Agent Activity -->
+        <div class="col-md-6 h-100">
+          <div class="card h-100 shadow-sm border-light" style="overflow: hidden;">
+            <div class="card-header d-flex align-items-center gap-2" style="font-size:13px; background: #fff; border-bottom: 1px solid #f1f5f9;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#1D9E75;"></div>
+              <span class="fw-semibold">Agent Activity Logs</span>
+            </div>
+            <div class="card-body overflow-auto d-flex flex-column gap-3" id="agentActivity">
+
+              {% for log in agentlogs %}
+                <div class="pb-2 border-bottom border-light">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    {% if log.event_type == 'tool_call' %}
+                      <span class="badge bg-primary" style="font-size:10px;">tool_call</span>
+                    {% elif log.event_type == 'tool_result' %}
+                      <span class="badge bg-secondary" style="font-size:10px;">tool_result</span>
+                    {% elif log.event_type == 'manager' %}
+                      <span class="badge text-white" style="font-size:10px; background:#6f42c1;">manager</span>
+                    {% elif log.event_type == 'risks' %}
+                      <span class="badge bg-danger" style="font-size:10px;">risk</span>
+                    {% elif log.event_type == 'final' %}
+                      <span class="badge bg-success" style="font-size:10px;">final</span>
+                    {% else %}
+                      <span class="badge bg-info text-dark" style="font-size:10px;">{{ log.event_type }}</span>
+                    {% endif %}
+                    <span class="text-muted" style="font-size:11px;">{{ log.created_at|date:"h:i A" }}</span>
+                  </div>
+                  <p class="mb-0 text-muted" style="font-size:12px;">{{ log.message }}</p>
+                </div>
+              {% empty %}
+                <div class="text-center text-muted my-auto">No activity logs recorded.</div>
+              {% endfor %}
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const chatTranscript = document.getElementById("chatTranscript");
+          if (chatTranscript) {
+            chatTranscript.scrollTop = chatTranscript.scrollHeight;
+          }
+
+          const agentActivity = document.getElementById("agentActivity");
+          if (agentActivity) {
+            agentActivity.scrollTop = agentActivity.scrollHeight;
+          }
+        });
+      </script>
+{% endblock %}

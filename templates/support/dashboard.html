@@ -1,0 +1,74 @@
+{% extends 'support/dashboard_base.html' %}
+
+{% block content %}
+        <h5 class="fw-bold mb-4">Conversations</h5>
+
+        <div class="card shadow-sm border-light">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr style="font-size: 12px">
+                  <th class="px-4">Customer</th>
+                  <th>Order</th>
+                  <th>Product</th>
+                  <th>Status</th>
+                  <th>Manager</th>
+                  <th>Risk</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody style="font-size: 13px" class="align-middle">
+                {% for conversation in conversations %}
+                <tr>
+                  <td class="px-4">{{ conversation.user.get_full_name|default:conversation.user.username }}</td>
+                  <td>Order #{{ conversation.order.id }}</td>
+                  <td>{{ conversation.order.product_name }}</td>
+                  <td>
+                    {% if conversation.order.status|lower == 'pending' %}
+                      <span class="status-badge status-pending">Pending</span>
+                    {% elif conversation.order.status|lower == 'shipped' %}
+                      <span class="status-badge status-shipped">Shipped</span>
+                    {% elif conversation.order.status|lower == 'dispatched' %}
+                      <span class="status-badge status-shipped">Dispatched</span>
+                    {% elif conversation.order.status|lower == 'delivered' %}
+                      <span class="status-badge status-delivered">Delivered</span>
+                    {% elif conversation.order.status|lower == 'cancelled' %}
+                      <span class="status-badge status-cancelled">Cancelled</span>
+                    {% else %}
+                      <span class="status-badge bg-secondary text-white">{{ conversation.order.status|capfirst }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if conversation.manager_involved %}
+                      <span class="status-badge badge-purple">Yes</span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if conversation.risked_assessed %}
+                      <span class="status-badge badge-red">Yes</span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">
+                    {{ conversation.created_at|date:"d M Y" }}
+                  </td>
+                  <td>
+                    <a href="{% url 'conversation_detail' conversation.id %}" class="btn btn-sm btn-outline-secondary">View</a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="8" class="text-center text-muted py-4">
+                    No conversations found.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+{% endblock %}
