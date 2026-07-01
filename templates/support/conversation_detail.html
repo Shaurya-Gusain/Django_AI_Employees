@@ -92,6 +92,93 @@
       </div>
 
       <script>
+        function showSpinner() {
+          const agentActivity = document.getElementById("agentActivity");
+          if (!agentActivity) return;
+
+          const html = `
+            <div id="agentSpinner" class="d-flex align-items-center mb-2">
+              <div class="spinner-border spinner-border-sm text-secondary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          `;
+          agentActivity.insertAdjacentHTML("beforeend", html);
+          agentActivity.scrollTop = agentActivity.scrollHeight;
+        }
+
+        function hideSpinner() {
+          const spinner = document.getElementById("agentSpinner");
+          if (spinner) {
+            spinner.remove();
+          }
+        }
+
+        function appendLog(type, message) {
+          const agentActivity = document.getElementById("agentActivity");
+          if (!agentActivity) return;
+
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+          
+          let badgeHTML = '';
+          if (type === 'tool_call') {
+            badgeHTML = '<span class="badge bg-primary" style="font-size:10px;">tool_call</span>';
+          } else if (type === 'tool_result') {
+            badgeHTML = '<span class="badge bg-secondary" style="font-size:10px;">tool_result</span>';
+          } else if (type === 'manager') {
+            badgeHTML = '<span class="badge text-white" style="font-size:10px; background:#6f42c1;">manager</span>';
+          } else if (type === 'risks') {
+            badgeHTML = '<span class="badge bg-danger" style="font-size:10px;">risk</span>';
+          } else if (type === 'final') {
+            badgeHTML = '<span class="badge bg-success" style="font-size:10px;">final</span>';
+          } else {
+            badgeHTML = `<span class="badge bg-info text-dark" style="font-size:10px;">${type}</span>`;
+          }
+
+          const html = `
+            <div class="pb-2 border-bottom border-light">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                ${badgeHTML}
+                <span class="text-muted" style="font-size:11px;">${time}</span>
+              </div>
+              <p class="mb-0 text-muted" style="font-size:12px;">${message}</p>
+            </div>
+          `;
+
+          agentActivity.insertAdjacentHTML("beforeend", html);
+          agentActivity.scrollTop = agentActivity.scrollHeight;
+        }
+
+        function appendMessage(role, name, message) {
+          const chatTranscript = document.getElementById("chatTranscript");
+          if (!chatTranscript) return;
+
+          let html = '';
+          if (role === 'user') {
+            html = `
+              <div class="mb-3">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:500;">${name}</div>
+                <div class="bg-light rounded p-2 px-3" style="font-size:13px;max-width:85%;color:#1e293b;">
+                  ${message}
+                </div>
+              </div>
+            `;
+          } else {
+            html = `
+              <div class="text-end mb-3">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;font-weight:500;">${name} (AI Agent)</div>
+                <div class="rounded p-2 px-3 d-inline-block text-start" 
+                     style="font-size:13px;max-width:85%;background:#ede9fe;color:#3C3489;">
+                  ${message}
+                </div>
+              </div>
+            `;
+          }
+
+          chatTranscript.insertAdjacentHTML("beforeend", html);
+          chatTranscript.scrollTop = chatTranscript.scrollHeight;
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
           const chatTranscript = document.getElementById("chatTranscript");
           if (chatTranscript) {
@@ -102,6 +189,36 @@
           if (agentActivity) {
             agentActivity.scrollTop = agentActivity.scrollHeight;
           }
+
+          const conversationId = "{{ conversation.id }}";
+          const source = new EventSource(`/support/dashboard/stream/${conversationId}/`);
+          
+          source.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            hideSpinner();
+            
+            if (data.type === 'done') {
+              return;
+            }
+            
+            if (data.type === 'user_message') {
+              appendMessage('user', data.name, data.message);
+              showSpinner();
+            } else if (data.type === 'final') {
+              appendLog(data.type, data.message);
+              appendMessage('assistant', 'Maya', data.message);
+            } else {
+              appendLog(data.type, data.message);
+              if (data.type !== 'final') {
+                showSpinner();
+              }
+            }
+          };
+
+          source.onerror = function(e) {
+            console.log("SSE connection closed");
+            source.close();
+          };
         });
       </script>
 {% endblock %}

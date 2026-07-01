@@ -3,6 +3,7 @@ from django.conf import settings
 from .tools import get_order_details, get_refund_history, check_delivery_status, get_customer_risk_profile
 from .models import Conversation, Message, AgentLog
 import json
+from .eventqueue import publish, DONE
 
 # Initialize Groq Client
 client = Groq(api_key=settings.API_KEY)
@@ -299,6 +300,11 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
                 event_type="final",
                 message=message.content
             )
+            publish(conv.id, {
+                "type": "final",
+                "message": message.content
+            })
+            publish(conv.id, DONE)
             return message.content
 
         if finish_reason == "tool_calls":
@@ -315,6 +321,10 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
                     event_type="tool_call",
                     message=f"Calling {tool_name} with {tool_input}"
                 )
+                publish(conv.id, {
+                    "type": "tool_call",
+                    "message": f"Calling {tool_name} with {tool_input}"
+                })
                 
                 print("===================================")
                 print("Tool called -->", tool_name)
@@ -330,6 +340,10 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
                     event_type="tool_result",
                     message=f"{tool_name} returned: {str(result)[:200]}"
                 )
+                publish(conv.id, {
+                    "type": "tool_result",
+                    "message": f"{tool_name} returned: {str(result)[:200]}"
+                })
 
                 conversation_messages.append({
                 "role": "tool",
@@ -344,6 +358,16 @@ def run_support_agent(user_message, conversation_id, order_id, user_id):
 
 
 def run_manager_agent(case_summary, conv=None):
+    if conv:
+        AgentLog.objects.create(
+            conversation=conv,
+            event_type="manager",
+            message="Case received for review"
+        )
+        publish(conv.id, {
+            "type": "manager",
+            "message": "Case received for review"
+        })
 
     manager_messages = [
         {"role":"user", "content":case_summary}
@@ -377,6 +401,10 @@ def run_manager_agent(case_summary, conv=None):
                     event_type="manager",
                     message=message.content
                 )
+                publish(conv.id, {
+                    "type": "manager",
+                    "message": message.content
+                })
             return message.content
 
         if finish_reason == "tool_calls":
@@ -390,11 +418,20 @@ def run_manager_agent(case_summary, conv=None):
 
                 # Log manager's tool call
                 if conv:
+                    if tool_name == "assess_fraud_risk":
+                        msg = "Consulting risk agent for fraud assessment"
+                    else:
+                        msg = f"MANAGER Calling {tool_name} with {tool_input}"
+
                     AgentLog.objects.create(
                         conversation=conv,
-                        event_type="tool_call",
-                        message=f"MANAGER Calling {tool_name} with {tool_input}"
+                        event_type="manager",
+                        message=msg
                     )
+                    publish(conv.id, {
+                        "type": "manager",
+                        "message": msg
+                    })
 
                 result = execute_tool(tool_name, tool_input, conv=conv)
                 
@@ -418,6 +455,16 @@ def run_manager_agent(case_summary, conv=None):
 
 
 def run_risk_agent(user_id, conv=None):
+    if conv:
+        AgentLog.objects.create(
+            conversation=conv,
+            event_type="risks",
+            message=f"Starting fraud assessment for user ID {user_id}"
+        )
+        publish(conv.id, {
+            "type": "risks",
+            "message": f"Starting fraud assessment for user ID {user_id}"
+        })
 
     risk_messages = [
         {
@@ -454,6 +501,10 @@ def run_risk_agent(user_id, conv=None):
                     event_type="risks",
                     message=message.content
                 )
+                publish(conv.id, {
+                    "type": "risks",
+                    "message": message.content
+                })
             return message.content
 
         if finish_reason == "tool_calls":
@@ -468,11 +519,16 @@ def run_risk_agent(user_id, conv=None):
 
                 # Log risk agent's tool call
                 if conv:
+                    msg = f"Calling {tool_name} to get customer risk profile"
                     AgentLog.objects.create(
                         conversation=conv,
-                        event_type="tool_call",
-                        message=f"RISK Calling {tool_name} with {tool_input}"
+                        event_type="risks",
+                        message=msg
                     )
+                    publish(conv.id, {
+                        "type": "risks",
+                        "message": msg
+                    })
 
                 result = execute_tool(tool_name, tool_input, conv=conv)
 
