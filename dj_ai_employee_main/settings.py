@@ -134,3 +134,7 @@ API_KEY = config("GROQ_API_KEY")
 MODEL = config("GROQ_MODEL")
 
 STATICFILES_STORAGE='whitenoise.storage.StaticFilesStorage'
+
+CSRF_TRUSTED_ORIGINS = {
+    "https://djangoaiemployees-production-660d.up.railway.app"
+}
