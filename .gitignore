@@ -175,3 +175,6 @@ cython_debug/
 
 # Project Overview
 PROJECT_OVERVIEW.md
+
+# ChromaDB database
+chroma_db/
